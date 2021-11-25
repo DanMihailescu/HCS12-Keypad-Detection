@@ -1,0 +1,274 @@
+ 0000           ; SYSC-2003 Winter 2007 Supplied code
+ 0000           
+ 0000           ; SYSC 2003 Assignment 3(modified from assignment 2 solutions)
+ 0000           ; 
+ 0000           ; Dan Mihailescu
+ 0000           ; March 12, 2016
+ 0000           ; 
+ 0000           ; Util 
+ 0000           
+ 0001           TRUE	= 1
+ 0000           FALSE	= 0
+ 0000           
+ 0000           	
+ 0000           ; void printHex (char hexNumber)
+ 0000           ;   D (in B) is hexNumber, a number from 0..15
+ 0000           ;
+ 0000           _printHex::
+ 0000 C40F             andb  #$0f      ; mask off bits
+ 0002 C109             cmpb  #$09      ; compare to number
+ 0004 2204             bhi   above9    ; branch if a thru f
+ 0006 CB30             addb  #$30      ; add standard offset
+ 0008 2002             bra hex
+ 000A           above9:
+ 000A CB37             addb  #$37      ; change a-f to ascii
+ 000C           hex:
+ 000C 160000           jsr   printChar
+ 000F 3D               rts
+ 0010                      
+ 0000           REGBS  = $0000 
+ 00CC           SC0SR1 = REGBS+$CC
+ 00CF           SC0DRL = REGBS+$CF
+ 0010           
+ 0010           ; void printChar( char character)
+ 0010           ;    D (in B) is character.
+ 0010           _printChar::
+ 0010 3B                pshd
+ 0011           here:   
+ 0011 1F00CC80FB     brCLR  SC0SR1,#$80,here
+ 0016           ;       LDAB    SC0SR1  ; read status
+ 0016           ;       BITB    #$80    ; test Transmit Data Register Empty bit
+ 0016           ;       BEQ     OUTSCI2 ; loop if TDRE=1
+ 0016           ;       ANDA    #$7F    ; mask parity
+ 0016 7B00CF            STAB    SC0DRL  ; send character
+ 0019 3A                puld
+ 001A 3D            rts
+ 001B                            
+ 001B           ; void printStr( char* string)
+ 001B           ;    D contains address of null-terminated string.
+ 001B           _printStr::
+ 001B 3B             pshd
+ 001C 35             pshy
+ 001D B7C6               xgdy
+ 001F           nextCharInStr:
+ 001F E670               ldab 1,y+
+ 0021 C100               cmpb #0x00
+ 0023 2705               beq printStrDone
+ 0025 160000             jsr printChar  
+ 0028 20F5              bra nextCharInStr
+ 002A           printStrDone:
+ 002A 31            puly
+ 002B 3A                puld
+ 002C 3D            rts
+ 002D               
+ 002D               
+ 002D           ; unsigned int convertToDecimal(char *string)
+ 002D           ; 
+ 002D           ; Returns the numeric equivalent of the decimal string.
+ 002D           ;
+ 002D           ; param -  D contains address of a null-terminated string denoting a valid positive decimal number, eg '1234' = ; 1234d
+ 002D           ; return - An unsigned int containing the decimal value equivalent to string
+ 002D           _convertToDecimal::
+ 002D 34                pshx
+ 002E 35                pshy
+ 002F B7C5              xgdx
+ 0031 CC0000            ldd #0
+ 0034 CD0000            ldy #0
+ 0037           convertNextChar:
+ 0037 E630              ldab 1, x+
+ 0039 C100              cmpb #0
+ 003B 270E              beq convertToDecimalDone
+ 003D                   
+ 003D                   ; Convert from ASCII to numerical value
+ 003D C030              subb #$30
+ 003F                           
+ 003F                   ; Shift and add the next value
+ 003F 3B                pshd
+ 0040                   
+ 0040                   
+ 0040                   ; Shift by a factor of 10
+ 0040 CC000A            ldd #10         
+ 0043 13                emul
+ 0044                   
+ 0044                   ; Add the next value
+ 0044 E380              addd 0, sp
+ 0046                   
+ 0046                   ; Put the sum back in y and pull b
+ 0046 B7C6              xgdy
+ 0048 3A                puld
+ 0049                           
+ 0049           
+ 0049                   ; Get the next character
+ 0049 20EC              bra convertNextChar
+ 004B                   
+ 004B           convertToDecimalDone:
+ 004B B7C6              xgdy
+ 004D 30                pulx
+ 004E 31                puly
+ 004F 3D                rts
+ 0050                   
+ 0050           
+ 0050           ; void convertToString(char num, char *string)
+ 0050           ; 
+ 0050           ; Returns the decimal string equivalent of num, with leading zeros in 
+ 0050           ; the hundreds and tens columns (so that the returned string is always three digits long)
+ 0050           ;  
+ 0050           ; param - num Passed in b - An unsigned byte number (maximum value = 255)
+ 0050           ; param - Address passed on stack - string A pointer to a null-terminated string of at least 4 bytes (3 digits+1terminator) in which the subroutine will store the string equivalent of num
+ 0050           ; 
+ 0050           
+ 0050           _convertToString::
+ 0050 3B                pshd
+ 0051 34                pshx
+ 0052 35                pshy
+ 0053                   
+ 0053 8600              ldaa #0
+ 0055 CE0000            ldx  #0
+ 0058 B7C6              xgdy                    ; Put the parameter in Y
+ 005A EC88              ldd 8, sp               ; Get the address of string
+ 005C C30004            addd #4                 ; Get the address slot for the last element
+ 005F B7C6              xgdy                    ; Put the address in Y and the parameter back in D
+ 0061                   
+ 0061 696F              clr 1, -y               ; Set the null terminator for the string and decrement the address pointer
+ 0063                   
+ 0063           convertNextNumberToString:
+ 0063 CE000A            ldx #10                 ; Number to divide by
+ 0066 1810              idiv                    ; Divide number by 10
+ 0068 C30030            addd #$30               ; Convert to ASCII
+ 006B 6B6F              stab 1, -y              ; Store the ASCII value and 
+ 006D B754              tfr x, d                ; Put the remaining number in D
+ 006F AD88              cpy 8, sp               ; Check if we are at the starting address
+ 0071 26F0              bne convertNextNumberToString
+ 0073                   
+ 0073                   
+ 0073           convertToStringDone:
+ 0073 31                puly
+ 0074 30                pulx
+ 0075 3A                puld
+ 0076 3D                rts
+ 0077           
+ 0077           
+ 0077           ; char getRowColumn(char code, char *row, char *column)
+ 0077           ; Extracts and returns the row and column information from the code, returning true
+ 0077           ; if the code contains valid row/column values. Return false (-1) if not.
+ 0077           ;
+ 0077           ; param code is a byte divided up into two nibbles, 
+ 0077           ;               the high nibble being the column identifier
+ 0077           ;               the low nibble being the row identifier
+ 0077           ;       Both identifiers are not numbers but are instead bit masks with a one in the bit
+ 0077           ;       position corresponding to the row/column, and all other bit positions zero.
+ 0077           ;        eg. A nibble 0001 has a one in bit position 0 and therefore identifies row/column 0
+ 0077           ;            eg. A nibble 1000 has a one in bit position 3 and therefore identifies row/column 3
+ 0077           ;
+ 0077           ; param row  A pointer to an unsigned byte in which the subroutine will return the row, 0..3
+ 0077           ; param column A pointer to an unsigned byte in which the subroutine will return the column, 0..3
+ 0077           ; return  0 if the code had two valid identifiers (one 1 and rest zero).
+ 0077           ;-1 if either row/column identifier had an invalid format (eg. more than one 1 or no 1s at all)
+ 0077           ;
+ 0077           
+ 0077           _getRowColumn::
+ 0077 36                psha
+ 0078 34                pshx
+ 0079 35                pshy
+ 007A                   
+ 007A ED89              ldy 9, sp                       ; Get address of row return
+ 007C           
+ 007C           getRowColumnInit:	
+ 007C           	; Initialize the values
+ 007C 8604              ldaa    #4                              ; Bits in a nibble
+ 007E CEFFFF            ldx             #$FFFF                  ; Potential return of -1
+ 0081                   
+ 0081           getRowColumnLoop:	
+ 0081 8100              cmpa #0
+ 0083 2710              beq getRowColumnLoopCheck       ; Terminating case, no more bits to check
+ 0085 43                deca                                            ; Decrement a
+ 0086                   
+ 0086 58                lslb                                    ; Rotate the bits left
+ 0087 24F8              bcc getRowColumnLoop    ; If there was no bit set the loop again
+ 0089                   
+ 0089           getRowColumnFound:
+ 0089 8EFFFF            cpx #$FFFF
+ 008C 260F              bne getRowColumnError   ; There has already been a 1 in the sequence so abort with -1
+ 008E 6A40              staa 0, y
+ 0090 CE0000            ldx  #0
+ 0093 20EC              bra getRowColumnLoop
+ 0095                   
+ 0095           getRowColumnLoopCheck:
+ 0095 AD87              cpy 7, sp                               
+ 0097 2707              beq getRowColumnDone    ; Make sure row and column are both done
+ 0099 ED87              ldy 7, sp                       
+ 009B 20DF              bra getRowColumnInit    ; Not done columns so do it again
+ 009D           
+ 009D           getRowColumnError:
+ 009D CE00FF            ldx #$FF
+ 00A0                   
+ 00A0           getRowColumnDone:
+ 00A0 B751              tfr x, b
+ 00A2 31                puly
+ 00A3 30                pulx
+ 00A4 32                pula
+ 00A5 3D                rts
+ 00A6                   
+ 00A6           ; char getChar(char row, char column)
+ 00A6           ; Returns the ASCII character corresponding to the [row][column] location on the keypad
+ 00A6           ; See the HC12 boards in the lab for the layout of the keypad.
+ 00A6           ; 
+ 00A6           ; param row   An unsigned byte from 0 to 3, where 0 is the topmost row.
+ 00A6           ; param column An unsigned byte from 0 to 3, where 0 is the leftmost column.
+ 00A6           ; return ASCII character '1' to '9' or 'A' to 'F'.
+ 00A6           
+ 00A6           _getChar::
+ 00A6 36                psha
+ 00A7 34                pshx
+ 00A8           
+ 00A8                   ; Row is in b
+ 00A8 A686              ldaa 6, sp ; Put column in a
+ 00AA                   
+ 00AA                   ; If the row or column are 3 then the return will be a hex character
+ 00AA 8103              cmpa #3
+ 00AC 2713              beq getCharHexColumn
+ 00AE C103              cmpb #3
+ 00B0 2715              beq getCharHexRow
+ 00B2                           
+ 00B2                   ; If the first two cases are not true then we have a numeric value
+ 00B2                   ; Multiply the number of columns by the actual row and add the column plus 1
+ 00B2                   ; (R * 3) + C + 1
+ 00B2                   
+ 00B2 B705              tfr a, x                ; Put column in X
+ 00B4 8603              ldaa #3                 ; Load max number of rows in A
+ 00B6 12                mul                             ; Multiply row by 3 => B
+ 00B7 B750              tfr x, a                ; Put column in A
+ 00B9 1806              aba                             ; Add A and B => A
+ 00BB 180E              tab                             ; Transfer answer to B
+ 00BD                   
+ 00BD CB31              addb #$31               ; Convert to ASCII + 1
+ 00BF 2018              bra getCharDone
+ 00C1           
+ 00C1           
+ 00C1           getCharHexColumn:
+ 00C1 180E              tab
+ 00C3 CB41              addb #'A'
+ 00C5 2012              bra getCharDone
+ 00C7                   
+ 00C7           
+ 00C7           getCharHexRow:
+ 00C7 8100              cmpa #0
+ 00C9 2708              beq getCharHexE 
+ 00CB 8101              cmpa #1
+ 00CD 2708              beq getCharZero 
+ 00CF           
+ 00CF           getCharHexF:
+ 00CF C646              ldab #'F'
+ 00D1 2006              bra getCharDone
+ 00D3           
+ 00D3           getCharHexE:
+ 00D3 C645              ldab #'E'
+ 00D5 2002              bra getCharDone
+ 00D7                   
+ 00D7           getCharZero:
+ 00D7 C630              ldab #'0'
+ 00D9           
+ 00D9           getCharDone:
+ 00D9 30                pulx
+ 00DA 32                pula
+ 00DB 3D                rts

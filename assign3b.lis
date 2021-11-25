@@ -1,0 +1,267 @@
+                        .module assign3b.c
+                        .area text
+                ;              c -> 1,SP
+ 0000           _putchar$device_specific$::
+ 0000 3B                pshd
+ 0001           ; #include "hcs12dp256.h"
+ 0001           ; #include "util.h"
+ 0001           ; #include <stdio.h>
+ 0001           ; 
+ 0001           ; #pragma nonpaged_function putchar
+ 0001           ; int putchar(char c){
+ 0001           L4:
+ 0001           ; 	while((SCI0SR1 & 0x80) == 0) { } 
+ 0001           L5:
+ 0001 1F00CC80FB        brclr 0xcc,#128,L4
+ 0006           ;       SCI0DRL = c;
+ 0006 180D8100CF        movb 1,S,0xcf
+ 000B           ;       return c;
+ 000B E681              ldab 1,S
+ 000D 87                clra
+ 000E           L3:
+ 000E                   .dbline 0 ; func end
+ 000E 1B82              leas 2,S
+ 0010 3D                rts
+ 0011           ;              i -> 0,SP
+ 0011           _pollKeypad::
+ 0011 1B9F              leas -1,S
+ 0013           ; }
+ 0013           ; 
+ 0013           ; // Scans the entire keypad once, each row in turn, and returns the row/column of the
+ 0013           ; // first key press it detects.
+ 0013           ; // Return the two values (row,column) within a single byte but putting the row value in
+ 0013           ; // the lower nibble and the column value in the higher nibble of the return value.
+ 0013           ; // Returns -1 if no key is being pressed at the time.
+ 0013           ; char pollKeypad()
+ 0013           ; {
+ 0013           ;       char i; //Basic counter
+ 0013           ;       SPI1CR1 = 0x00; 
+ 0013 7900F0            clr 0xf0
+ 0016           ;       DDRP = 0x0F;
+ 0016 180B0F025A        movb #15,0x25a
+ 001B           ;       DDRH = 0x00;
+ 001B 790262            clr 0x262
+ 001E           ;       PTP = 0x01; // For row 1
+ 001E 180B010258        movb #1,0x258
+ 0023           ;       PTM = 0x08; 
+ 0023 180B080250        movb #8,0x250
+ 0028           ;       DDRK = 0x20;
+ 0028 180B200033        movb #32,0x33
+ 002D           ;       for(i =1; i<= 8; i *= 2)
+ 002D 18088001          movb #1,0,S
+ 0031 2057              bra L11
+ 0033           L8:
+ 0033           ; 	{
+ 0033           ; 		PTP = i;   //Increases row
+ 0033 180D800258        movb 0,S,0x258
+ 0038           ;               if((PTH & 0xF0) == 0x10){    // Checks column 1 
+ 0038 F60260            ldab 0x260
+ 003B C4F0              andb #240
+ 003D C110              cmpb #16
+ 003F 260A              bne L12
+ 0041           ;                       PTM= 0x00; // clears port M
+ 0041 790250            clr 0x250
+ 0044           ;                       return 0x10 + i;
+ 0044 E680              ldab 0,S
+ 0046 CB10              addb #16
+ 0048 87                clra
+ 0049 2048              bra L7
+ 004B           L12:
+ 004B           ; 		}
+ 004B           ; 		else if((PTH & 0xF0) == 0x20){  // Checks column 2
+ 004B F60260            ldab 0x260
+ 004E C4F0              andb #240
+ 0050 C120              cmpb #32
+ 0052 260A              bne L14
+ 0054           ;                       PTM= 0x00; 
+ 0054 790250            clr 0x250
+ 0057           ;                       return 0x20 + i;
+ 0057 E680              ldab 0,S
+ 0059 CB20              addb #32
+ 005B 87                clra
+ 005C 2035              bra L7
+ 005E           L14:
+ 005E           ; 		}
+ 005E           ; 		else if((PTH & 0xF0) == 0x40){  // Checks column 3
+ 005E F60260            ldab 0x260
+ 0061 C4F0              andb #240
+ 0063 C140              cmpb #64
+ 0065 260A              bne L16
+ 0067           ;                       PTM= 0x00; 
+ 0067 790250            clr 0x250
+ 006A           ;                       return 0x40 + i;
+ 006A E680              ldab 0,S
+ 006C CB40              addb #64
+ 006E 87                clra
+ 006F 2022              bra L7
+ 0071           L16:
+ 0071           ; 		}
+ 0071           ; 		else if((PTH & 0xF0) == 0x80){  // Checks column 4
+ 0071 F60260            ldab 0x260
+ 0074 C4F0              andb #240
+ 0076 C180              cmpb #128
+ 0078 260A              bne L18
+ 007A           ;                       PTM= 0x00; 
+ 007A 790250            clr 0x250
+ 007D           ;                       return 0x80 + i;
+ 007D E680              ldab 0,S
+ 007F CB80              addb #128
+ 0081 87                clra
+ 0082 200F              bra L7
+ 0084           L18:
+ 0084           ; 		}
+ 0084           ; 	}
+ 0084           L9:
+ 0084 E680              ldab 0,S
+ 0086 87                clra
+ 0087 59                lsld
+ 0088 6B80              stab 0,S
+ 008A           L11:
+ 008A E680              ldab 0,S
+ 008C C108              cmpb #8
+ 008E 23A3              bls L8
+ 0090           ;       return -1;  //Returned if no value is found
+ 0090 CC00FF            ldd #255
+ 0093           L7:
+ 0093                   .dbline 0 ; func end
+ 0093 1B81              leas 1,S
+ 0095 3D                rts
+ 0096           L21:
+ 0096 3132              .byte 49,50
+ 0098 3341              .byte 51,'A
+ 009A 3435              .byte 52,53
+ 009C 3642              .byte 54,'B
+ 009E 3738              .byte 55,56
+ 00A0 3943              .byte 57,'C
+ 00A2 4530              .byte 'E,48
+ 00A4 4644              .byte 'F,'D
+ 00A6           ;          array -> 6,SP
+ 00A6           ;         column -> 22,SP
+ 00A6           ;            row -> 23,SP
+ 00A6           ;        inRange -> 24,SP
+ 00A6           ;      rowColumn -> 26,SP
+ 00A6           _mapRCtoChar::
+ 00A6 3B                pshd
+ 00A7 1BF1E7            leas -25,S
+ 00AA           ; }
+ 00AA           ; 
+ 00AA           ; // Maps a (row,column) pair of a keypad button into its respective ASCII character
+ 00AA           ; // @param rowColumn Contains the position of a keypad button, encoded as a row in the low 4 bits and a column position in the high 4 bits
+ 00AA           ; // Returns NULL if the (row,column) positions are out-of-bounds.
+ 00AA           ; char mapRCtoChar(char rowColumn)
+ 00AA           ; {
+ 00AA           ;       char row;
+ 00AA           ;       char column;
+ 00AA           ;       char array[4][4] = {{'1','2','3','A'},   //Creates 4x4 arrow to simulate keypad
+ 00AA CD0096            ldy #L21
+ 00AD 1A86              leax 6,S
+ 00AF CC0008            ldd #8
+ 00B2           X0:
+ 00B2 18027131          movw 2,Y+,2,X+
+ 00B6 0434F9            dbne D,X0
+ 00B9           ;                                       {'4','5','6','B'},
+ 00B9           ;                                           {'7','8','9','C'},
+ 00B9           ;                                           {'E','0','F','D'}};
+ 00B9           ;       char inRange  = getRowColumn(rowColumn, &row, &column);
+ 00B9 19F016            leay 22,S
+ 00BC 6D82              sty 2,S
+ 00BE 19F017            leay 23,S
+ 00C1 6D80              sty 0,S
+ 00C3 E6F01A            ldab 26,S
+ 00C6 87                clra
+ 00C7 160000            jsr _getRowColumn
+ 00CA 6BF018            stab 24,S
+ 00CD           ;       if (inRange == 0){ return array[row][column]; }
+ 00CD C100              cmpb #0
+ 00CF 261D              bne L22
+ 00D1 1986              leay 6,S
+ 00D3 E6F017            ldab 23,S
+ 00D6 87                clra
+ 00D7 59                lsld
+ 00D8 59                lsld
+ 00D9 6D84              sty 4,S
+ 00DB E384              addd 4,S
+ 00DD B746              tfr D,Y
+ 00DF E6F016            ldab 22,S
+ 00E2 87                clra
+ 00E3 6D84              sty 4,S
+ 00E5 E384              addd 4,S
+ 00E7 B746              tfr D,Y
+ 00E9 E640              ldab 0,Y
+ 00EB 87                clra
+ 00EC 2003              bra L20
+ 00EE           L22:
+ 00EE           ; 	else{ return NULL; }
+ 00EE CC0000            ldd #0
+ 00F1           L20:
+ 00F1                   .dbline 0 ; func end
+ 00F1 1BF01B            leas 27,S
+ 00F4 3D                rts
+ 00F5           ;           temp -> 2,SP
+ 00F5           ;          final -> 3,SP
+ 00F5           _main::
+ 00F5 1B9C              leas -4,S
+ 00F7           ; }
+ 00F7           ;  
+ 00F7           ; void main(void)
+ 00F7           ; {
+ 00F7           ;       char final;
+ 00F7           ;       char temp = 0;
+ 00F7 6982              clr 2,S
+ 00F9 2049              bra L26
+ 00FB           L25:
+ 00FB           ; 	while (1){
+ 00FB           ; 		final = mapRCtoChar(pollKeypad());  //Gets input
+ 00FB 160011            jsr _pollKeypad
+ 00FE 87                clra
+ 00FF 1600A6            jsr _mapRCtoChar
+ 0102 6B83              stab 3,S
+ 0104           ;               if(final != NULL && final != temp){ //Makes sure a button is pressed
+ 0104 C100              cmpb #0
+ 0106 273C              beq L28
+ 0108 E683              ldab 3,S
+ 010A E182              cmpb 2,S
+ 010C 2736              beq L28
+ 010E           ;                       temp = final;
+ 010E 180A8382          movb 3,S,2,S
+ 0112           ;                       printf("\n");
+ 0112 CD0149            ldy #L30
+ 0115 6D80              sty 0,S
+ 0117 160000            jsr _printf
+ 011A           ;                       printChar(final);
+ 011A E683              ldab 3,S
+ 011C 87                clra
+ 011D 160000            jsr _printChar
+ 0120           ;                       if (final >= 0x30 && final < 0x40){
+ 0120 E683              ldab 3,S
+ 0122 C130              cmpb #48
+ 0124 251E              blo L31
+ 0126 E683              ldab 3,S
+ 0128 C140              cmpb #64
+ 012A 2418              bhs L31
+ 012C           ;                               final -= 0x30;
+ 012C E683              ldab 3,S
+ 012E C030              subb #48
+ 0130 6B83              stab 3,S
+ 0132           ;                               PTM = 0x08;
+ 0132 180B080250        movb #8,0x250
+ 0137           ;                               DDRT = 0x0F;
+ 0137 180B0F0242        movb #15,0x242
+ 013C           ;                               PTT = final;
+ 013C 180D830240        movb 3,S,0x240
+ 0141           ;                               PTM = 0x00;
+ 0141 790250            clr 0x250
+ 0144           ;                       }
+ 0144           L31:
+ 0144           ; 		}
+ 0144           L28:
+ 0144           ;     }
+ 0144           L26:
+ 0144 20B5              bra L25
+ 0146           X1:
+ 0146           L24:
+ 0146                   .dbline 0 ; func end
+ 0146 1B84              leas 4,S
+ 0148 3D                rts
+ 0149           L30:
+ 0149 0A00              .byte 10,0
